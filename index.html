@@ -89,23 +89,16 @@
           <br>Connected together</font></a>
       </td>
       <!-- <td align="center" valign="bottom"><a href="/thinkingfountain/nav/tfideas.html"><font size="2"><img src="/thinkingfountain/images/addyouridea.jpg" border="0" hspace="10"><br>Send us mail</font></a></td> -->
-      <form method="post" action="/thinkingfountain/search/">
-        <td align="center" valign="bottom">
-          <input
-            type="image"
+      <td align="center" valign="bottom">
+        <form method="get" action="/thinkingfountain/search/" onsubmit="if(this.q.value.trim()==='')return false;">
+          <input type="image"
             src="/thinkingfountain/images/searchbutton.gif"
-            name="submit"
-            border="0"
-            hspace="10"
-            value="Search"
-          ><br> <input type="text"
-                       name="words"
-                       size="15"
-                       value="<?php echo htmlentities(stripslashes(str_replace(strrchr($words,"
-                       ;"),"",$words))); ?>"><br>
+            border="0" hspace="10" value="Search"
+          ><br>
+          <input type="text" name="q" size="15"><br>
           <a href="/thinkingfountain/search/"><font size="2">Try something new</font></a>
-        </td>
-      </form>
+        </form>
+      </td>
     </tr>
   </table>
   <hr noshade size="1">
