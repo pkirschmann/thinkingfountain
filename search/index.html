@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<HTML>
+<HEAD>
+<TITLE>Search - Thinking Fountain</TITLE>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { background: #ffffff; color: #000000; font-family: Arial, sans-serif; margin: 0; padding: 0; }
+  .header { padding: 10px 20px 0 20px; }
+  .header hr { margin: 6px 0 10px 0; }
+  h1 { font-size: 1.4em; margin: 4px 0; }
+  .search-area { padding: 10px 20px; }
+  #query {
+    font-size: 1em;
+    padding: 5px 8px;
+    width: 300px;
+    border: 2px solid #336699;
+    border-radius: 3px;
+  }
+  #search-btn {
+    font-size: 1em;
+    padding: 5px 14px;
+    background: #336699;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 6px;
+  }
+  #search-btn:hover { background: #254f80; }
+  #status { color: #666; font-size: 0.85em; margin-top: 6px; min-height: 1.2em; }
+  #results { padding: 0 20px 20px 20px; }
+  .result {
+    border-bottom: 1px solid #ddd;
+    padding: 10px 0;
+    max-width: 600px;
+  }
+  .result a { color: #336699; font-weight: bold; font-size: 1em; text-decoration: none; }
+  .result a:hover { text-decoration: underline; }
+  .result .snippet { font-size: 0.87em; color: #444; margin-top: 3px; }
+  .result .url { font-size: 0.75em; color: #888; margin-top: 2px; }
+  .no-results { color: #666; font-style: italic; padding: 10px 0; }
+  .footer-nav { padding: 10px 20px; border-top: 1px solid #ccc; margin-top: 20px; }
+  .footer-nav table { border-collapse: collapse; }
+  .footer-nav td { padding: 0 10px; text-align: center; vertical-align: bottom; font-size: 0.8em; }
+  .footer-nav a { color: #336699; text-decoration: none; }
+  .footer-nav a:hover { text-decoration: underline; }
+  .footer-copy { text-align: center; font-size: 0.8em; color: #444; padding: 8px 0 16px 0; }
+</style>
+</HEAD>
+<BODY>
+
+<div class="header">
+  <table border=0 cellpadding=0 cellspacing=5>
+    <tr>
+      <td rowspan=2><A HREF="/thinkingfountain/"><IMG align=top src="/thinkingfountain/pix/smallftn.gif" alt="Thinking Fountain" border=0 hspace=13></A></td>
+      <td><IMG align=top src="/thinkingfountain/pix/texttf.gif" alt="Thinking Fountain" hspace=7></td>
+    </tr>
+    <tr>
+      <td><CENTER><HR><H1>Search</H1></CENTER></td>
+    </tr>
+  </table>
+</div>
+
+<div class="search-area">
+  <form id="search-form" onsubmit="return false">
+    <input type="text" id="query" placeholder="Enter search terms…" autofocus autocomplete="off">
+    <button type="submit" id="search-btn" onclick="doSearch()">Search</button>
+  </form>
+  <div id="status">Loading search index…</div>
+</div>
+
+<div id="results"></div>
+
+<div class="footer-nav">
+  <CENTER><HR>
+  <table border=0>
+    <tr>
+      <td valign=top><CENTER><FONT SIZE=2><A HREF="/thinkingfountain/nav/tfclusters.html"><IMG border=0 src="/thinkingfountain/pix/cc.jpg" hspace=10><BR>Gathered by topic</A></FONT></CENTER></td>
+      <td valign=top><CENTER><FONT SIZE=2><A HREF="/thinkingfountain/nav/tfmindmaps.html"><IMG border=0 alt="Mind maps" src="/thinkingfountain/pix/mindmaps.jpg" hspace=10><BR>Connected together</A></FONT></CENTER></td>
+      <td valign=top><CENTER><A HREF="/thinkingfountain/nav/tfatoz.html"><FONT SIZE=2><IMG border=0 alt="A to Z" src="/thinkingfountain/pix/newatoz.jpg" hspace=5><BR>Index of ideas</FONT></A></CENTER></td>
+    </tr>
+  </table>
+  <hr>
+  <div class="footer-copy">
+    <FONT SIZE=2><A HREF="https://pkirschmann.github.io/thinkingfountain">Science Learning Network</A> / <A HREF="https://www.smm.org">&copy;1995 Science Museum of Minnesota</A></FONT>
+  </div>
+  </CENTER>
+</div>
+
+<script src="https://unpkg.com/lunr/lunr.js"></script>
+<script>
+  var idx, docs;
+
+  // Pre-fill query from URL ?q= param
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var q = params.get('q') || params.get('words');
+    if (q) document.getElementById('query').value = q;
+  })();
+
+  fetch('/thinkingfountain/search/documents.json')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      docs = data;
+      idx = lunr(function() {
+        this.ref('id');
+        this.field('title', { boost: 10 });
+        this.field('body');
+        data.forEach(function(doc) { this.add(doc); }, this);
+      });
+      document.getElementById('status').textContent =
+        'Search ready (' + data.length + ' pages indexed).';
+      // Auto-search if query was in URL
+      var q = document.getElementById('query').value.trim();
+      if (q) doSearch();
+    })
+    .catch(function(e) {
+      document.getElementById('status').textContent = 'Failed to load search index.';
+      console.error(e);
+    });
+
+  function doSearch() {
+    var query = document.getElementById('query').value.trim();
+    var resultsEl = document.getElementById('results');
+    if (!idx) {
+      document.getElementById('status').textContent = 'Index still loading, please wait…';
+      return;
+    }
+    if (!query) {
+      resultsEl.innerHTML = '';
+      document.getElementById('status').textContent = 'Enter a search term above.';
+      return;
+    }
+
+    var raw;
+    try {
+      raw = idx.search(query);
+    } catch(e) {
+      // lunr throws on some malformed queries; try wildcard fallback
+      try { raw = idx.search(query + '*'); } catch(_) { raw = []; }
+    }
+
+    document.getElementById('status').textContent =
+      raw.length + ' result' + (raw.length !== 1 ? 's' : '') + ' for "' + query + '"';
+
+    if (raw.length === 0) {
+      resultsEl.innerHTML = '<p class="no-results">No results found. Try different keywords.</p>';
+      return;
+    }
+
+    var html = '';
+    raw.slice(0, 30).forEach(function(hit) {
+      var doc = docs[hit.ref];
+      if (!doc) return;
+      var snippet = doc.body.replace(/\s+/g, ' ').trim();
+      // Highlight query words in snippet
+      var words = query.toLowerCase().split(/\s+/);
+      var idx2 = -1;
+      words.forEach(function(w) {
+        var i = snippet.toLowerCase().indexOf(w);
+        if (i !== -1 && (idx2 === -1 || i < idx2)) idx2 = i;
+      });
+      var start = Math.max(0, idx2 - 80);
+      snippet = (start > 0 ? '…' : '') + snippet.slice(start, start + 200) + (snippet.length > start + 200 ? '…' : '');
+
+      var displayUrl = doc.url.replace('/thinkingfountain/', '');
+      html += '<div class="result">' +
+        '<a href="' + doc.url + '">' + (doc.title || displayUrl) + '</a>' +
+        '<div class="snippet">' + escHtml(snippet) + '</div>' +
+        '<div class="url">' + escHtml(displayUrl) + '</div>' +
+        '</div>';
+    });
+    resultsEl.innerHTML = html;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  document.getElementById('query').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doSearch();
+  });
+</script>
+</BODY>
+</HTML>
